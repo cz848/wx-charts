@@ -13,6 +13,7 @@ let Charts = function(opts) {
     opts.extra = opts.extra || {};
     opts.legend = opts.legend === false ? false : true;
     opts.animation = opts.animation === false ? false : true;
+    opts.breakOnNull = opts.breakOnNull === false ? false : true;
     let config = assign({}, Config);
     config.yAxisTitleWidth = opts.yAxis.disabled !== true && opts.yAxis.title ? config.yAxisTitleWidth : 0;
     config.pieChartLinePadding = opts.dataLabel === false ? 0 : config.pieChartLinePadding;
@@ -20,7 +21,10 @@ let Charts = function(opts) {
 
     this.opts = opts;
     this.config = config;
-    this.context = wx.createCanvasContext(opts.canvasId);
+    // https://mp.weixin.qq.com/debug/wxadoc/dev/api/canvas/create-canvas-context.html
+    // componentInstance 自定义组件实例 this ，表示在这个自定义组件下查找拥有 canvas-id 的 <canvas/> 
+    // 如果省略，则不在任何自定义组件内查找
+    this.context = wx.createCanvasContext(opts.canvasId, opts.componentInstance);
     // store calcuated chart data
     // such as chart point coordinate
     this.chartData = {};
@@ -41,6 +45,9 @@ Charts.prototype.updateData = function (data = {}) {
     this.opts.title = assign({}, this.opts.title, data.title || {});
     this.opts.subtitle = assign({}, this.opts.subtitle, data.subtitle || {});
 
+    if(this.opts.enableScroll === true) {
+        this.opts._scrollDistance_ = this.scrollOption.currentOffset;
+    }
     drawCharts.call(this, this.opts.type, this.opts, this.config, this.context);
 }
 
@@ -53,7 +60,7 @@ Charts.prototype.addEventListener = function (type, listener) {
 }
 
 Charts.prototype.getCurrentDataIndex = function (e) {
-    let touches = e.touches && e.touches.length ? e.touches : e.changedTouches;
+    let touches = e.touches && e.touches.length && e.touches[e.touches.length - 1].x ? e.touches : e.changedTouches;
     if (touches && touches.length) {
         let {x, y} = touches[0];
         if (this.opts.type === 'pie' || this.opts.type === 'ring') {
@@ -92,14 +99,20 @@ Charts.prototype.showToolTip = function (e, option = {}) {
 
 Charts.prototype.scrollStart = function (e) {
     if (e.touches[0] && this.opts.enableScroll === true) {
-        this.scrollOption.startTouchX = e.touches[0].x;
+        this.scrollOption.startTouchX = e.touches[e.touches.length - 1].x;
     }
 }
 
 Charts.prototype.scroll = function (e) {
     // TODO throtting...
     if (e.touches[0] && this.opts.enableScroll === true) {
-        let _distance = e.touches[0].x - this.scrollOption.startTouchX;
+        let nowitem = {};
+        e.touches.forEach(el => {
+            if (el.x) {
+                nowitem = el;
+            }
+        });
+    	let _distance = nowitem.x - this.scrollOption.startTouchX;
         let { currentOffset } = this.scrollOption;
         let validDistance = calValidDistance(currentOffset + _distance, this.chartData, this.config, this.opts);
 

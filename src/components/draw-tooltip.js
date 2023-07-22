@@ -5,7 +5,7 @@ export function drawToolTipSplitLine(offsetX, opts, config, context) {
     let startY = config.padding;
     let endY = opts.height - config.padding - config.xAxisHeight - config.legendHeight;
     context.beginPath();
-    context.setStrokeStyle('#cccccc');
+    context.setStrokeStyle(opts.tooltip.option.color || config.toolTipColor);
     context.setLineWidth(1);
     context.moveTo(offsetX, startY);
     context.lineTo(offsetX, endY);
